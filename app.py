@@ -6,7 +6,6 @@ from flask_cors import CORS
 import datetime
 import re
 import jwt
-import os
 
 from functools import wraps
 import pytz
@@ -18,10 +17,9 @@ CORS(app)
 
 db = SQLAlchemy(app)
 import model
-basedir = os.path.dirname(os.path.abspath(__file__))
-database = 'sqlite:///' + os.path.join(basedir, 'db.sqlite')
+# basedir = os.path.dirname(os.path.abspath(__file__))
+# database = 'sqlite:///' + os.path.join(basedir, 'db.sqlite')
 app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///db.sqlite'
-# app.config['SQLALCHEMY_DATABASE_URI'] = 'postgres://qlgprufzddqgwe:a0c7e120a85b4277822d55fb9c398c390d90a3a5b11d9384b901da691e74df97@ec2-50-19-255-190.compute-1.amazonaws.com:5432/d5hf4lbfmhur8c'
 app.config["SECRET_KEY"] = "AIBNEGARA"
 
 def LoginRequired(f):
