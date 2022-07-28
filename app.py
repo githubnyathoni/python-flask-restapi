@@ -20,7 +20,7 @@ db = SQLAlchemy(app)
 basedir = os.path.dirname(os.path.abspath(__file__))
 database = 'sqlite:///' + os.path.join(basedir, 'db.sqlite')
 # app.config['SQLALCHEMY_DATABASE_URI'] = database
-app.config['SQLALCHEMY_DATABASE_URI'] = 'postgres://ouhenhuwevrbjc:4a94dd4fec786c5a04ae39e3ff3cc896c4e1396d42065acda4caca834aa0b945@ec2-44-195-100-240.compute-1.amazonaws.com:5432/da166u5edqj59h'
+app.config['SQLALCHEMY_DATABASE_URI'] = 'postgres://qlgprufzddqgwe:a0c7e120a85b4277822d55fb9c398c390d90a3a5b11d9384b901da691e74df97@ec2-50-19-255-190.compute-1.amazonaws.com:5432/d5hf4lbfmhur8c'
 app.config["SECRET_KEY"] = "AIBNEGARA"
 
 def LoginRequired(f):
