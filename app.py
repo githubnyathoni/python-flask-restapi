@@ -23,6 +23,63 @@ app.config['SQLALCHEMY_DATABASE_URI'] = database
 # app.config['SQLALCHEMY_DATABASE_URI'] = 'postgres://qlgprufzddqgwe:a0c7e120a85b4277822d55fb9c398c390d90a3a5b11d9384b901da691e74df97@ec2-50-19-255-190.compute-1.amazonaws.com:5432/d5hf4lbfmhur8c'
 app.config["SECRET_KEY"] = "AIBNEGARA"
 
+class EmployeesModel(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    username = db.Column(db.String(100))
+    password = db.Column(db.String(100))
+
+    def save(self):
+        try:
+            db.session.add(self)
+            db.session.commit()
+            return True
+        except:
+            return False
+
+class ActivityModel(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    user_id = db.Column(db.Integer, db.ForeignKey("employees_model.id"))
+    activity_name = db.Column(db.String(100))
+    activity_date = db.Column(db.Date, default=datetime.date.today())
+    activity_status = db.Column(db.Integer)
+
+    def save(self):
+        try:
+            db.session.add(self)
+            db.session.commit()
+            return True
+        except:
+            return False
+
+class AttendanceModel(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    user_id = db.Column(db.Integer, db.ForeignKey("employees_model.id"))
+    checkin = db.Column(db.DateTime)
+    checkout = db.Column(db.DateTime)
+
+    def save(self):
+        try:
+            db.session.add(self)
+            db.session.commit()
+            return True
+        except:
+            return False
+
+class TokenBlocklist(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    jwt = db.Column(db.String(100), nullable=False, index=True)
+    created_at = db.Column(db.DateTime, nullable=False)
+
+    def save(self):
+        try:
+            db.session.add(self)
+            db.session.commit()
+            return True
+        except:
+            return False
+
+db.create_all()
+
 def LoginRequired(f):
     @wraps(f)
     def decorator(*args, **kwargs):
@@ -35,8 +92,8 @@ def LoginRequired(f):
                 }
             ), 401)
         else:
-            isBlocked = model.TokenBlocklist.query.filter(
-            model.TokenBlocklist.jwt==token).first()
+            isBlocked = TokenBlocklist.query.filter(
+            TokenBlocklist.jwt==token).first()
             if(isBlocked):
                 return make_response(jsonify(
                     {
@@ -63,9 +120,9 @@ class LoginEmployeeResource(Resource):
         username = request.form['username']
         password = request.form['password']
 
-        query = model.EmployeesModel.query.filter(
-            model.EmployeesModel.username==username,
-            model.EmployeesModel.password==password).first()
+        query = EmployeesModel.query.filter(
+            EmployeesModel.username==username,
+            EmployeesModel.password==password).first()
 
         if(query):
             token = jwt.encode(
@@ -97,7 +154,7 @@ class LogoutEmployeeResource(Resource):
     def post(self):
         token = session['jwt']
         now = datetime.datetime.now(pytz.timezone('Asia/Jakarta'))
-        query = model.TokenBlocklist(
+        query = TokenBlocklist(
             jwt = token,
             created_at = now
         )
@@ -116,7 +173,7 @@ class LogoutEmployeeResource(Resource):
 class AttendanceResource(Resource):
     @LoginRequired
     def get(self):
-        query = model.AttendanceModel.query.all()
+        query = AttendanceModel.query.all()
         attendanceData = [
             {
                 'id': attendance.id,
@@ -139,9 +196,9 @@ class AttendanceResource(Resource):
     def post(self):
         type = request.form['type']
         if(type == 'checkin'):
-            query = model.AttendanceModel.query.filter(
-                model.AttendanceModel.checkin>=datetime.date.today(),
-                model.AttendanceModel.user_id==session['user_id']).first()
+            query = AttendanceModel.query.filter(
+                AttendanceModel.checkin>=datetime.date.today(),
+                AttendanceModel.user_id==session['user_id']).first()
             if(query):
                 return make_response(jsonify(
                     {
@@ -150,7 +207,7 @@ class AttendanceResource(Resource):
                     }
                 ), 400)
             else:
-                query = model.AttendanceModel(
+                query = AttendanceModel(
                     user_id = session['user_id'],
                     checkin = datetime.datetime.now(pytz.timezone('Asia/Jakarta'))
                 )
@@ -163,15 +220,15 @@ class AttendanceResource(Resource):
                     }
                 ), 200)
         elif(type == 'checkout'):
-            query = model.AttendanceModel.query.filter(
-                model.AttendanceModel.checkin>=datetime.date.today(),
-                model.AttendanceModel.user_id==session['user_id'],
-                model.AttendanceModel.checkout==None).first()
+            query = AttendanceModel.query.filter(
+                AttendanceModel.checkin>=datetime.date.today(),
+                AttendanceModel.user_id==session['user_id'],
+                AttendanceModel.checkout==None).first()
             if(query):
                 checkout = datetime.datetime.now(pytz.timezone('Asia/Jakarta'))
 
                 query.checkout = checkout
-                model.db.session.commit()
+                db.session.commit()
 
                 return make_response(jsonify(
                     {
@@ -197,7 +254,7 @@ class AttendanceResource(Resource):
 class ActivityResource(Resource):
     @LoginRequired
     def get(self):
-        query = model.ActivityModel.query.all()
+        query = ActivityModel.query.all()
         activityData = [
             {
                 'id': activity.id,
@@ -219,9 +276,9 @@ class ActivityResource(Resource):
     
     @LoginRequired
     def post(self):
-        checkIn = model.AttendanceModel.query.filter(
-        model.AttendanceModel.checkin>=datetime.date.today(),
-        model.AttendanceModel.user_id==session['user_id']).first()
+        checkIn = AttendanceModel.query.filter(
+        AttendanceModel.checkin>=datetime.date.today(),
+        AttendanceModel.user_id==session['user_id']).first()
 
         if(checkIn):
             user_id = session['user_id']
@@ -232,7 +289,7 @@ class ActivityResource(Resource):
                 activity_date = datetime.datetime(int(y), int(m), int(d))
                 activity_status  = request.form['activity_status']
 
-                query = model.ActivityModel(
+                query = ActivityModel(
                     user_id = user_id,
                     activity_name = activity_name,
                     activity_date = activity_date,
@@ -265,7 +322,7 @@ class ActivityResource(Resource):
 class EmployeeResource(Resource):
     @LoginRequired
     def get(self):
-        query = model.EmployeesModel.query.all()
+        query = EmployeesModel.query.all()
         employeeData = [
             {
                 'id': employee.id,
@@ -287,11 +344,11 @@ class EmployeeResource(Resource):
         username = request.form['username']
         password = request.form['password']
         
-        isAlready = model.EmployeesModel.query.filter(
-            model.EmployeesModel.username == username
+        isAlready = EmployeesModel.query.filter(
+            EmployeesModel.username == username
         ).first()
         if(not isAlready):
-            query = model.EmployeesModel(
+            query = EmployeesModel(
                 username = username,
                 password = password
                 )
@@ -314,12 +371,12 @@ class EmployeeResource(Resource):
 class UpdateDeleteActivityResource(Resource):
     @LoginRequired
     def put(self, id):
-        checkIn = model.AttendanceModel.query.filter(
-        model.AttendanceModel.checkin>=datetime.date.today(),
-        model.AttendanceModel.user_id==session['user_id']).first()
+        checkIn = AttendanceModel.query.filter(
+        AttendanceModel.checkin>=datetime.date.today(),
+        AttendanceModel.user_id==session['user_id']).first()
 
         if(checkIn):
-            query = model.ActivityModel.query.get(id)
+            query = ActivityModel.query.get(id)
 
             activity_name = request.form['activity_name']
             d, m, y = request.form['activity_date'].split('-')
@@ -329,7 +386,7 @@ class UpdateDeleteActivityResource(Resource):
             query.activity_name = activity_name
             query.activity_date = activity_date
             query.activity_status = activity_status
-            model.db.session.commit()
+            db.session.commit()
             
             return make_response(jsonify(
                 {
@@ -347,16 +404,16 @@ class UpdateDeleteActivityResource(Resource):
 
     @LoginRequired
     def delete(self, id):
-        checkIn = model.AttendanceModel.query.filter(
-        model.AttendanceModel.checkin>=datetime.date.today(),
-        model.AttendanceModel.user_id==session['user_id']).first()
+        checkIn = AttendanceModel.query.filter(
+        AttendanceModel.checkin>=datetime.date.today(),
+        AttendanceModel.user_id==session['user_id']).first()
 
         if(checkIn):
-            query = model.ActivityModel.query.get(id)
+            query = ActivityModel.query.get(id)
             
             if(query):
-                model.db.session.delete(query)
-                model.db.session.commit()
+                db.session.delete(query)
+                db.session.commit()
 
                 return make_response(jsonify(
                     {
@@ -381,7 +438,7 @@ class UpdateDeleteActivityResource(Resource):
 
     @LoginRequired
     def get(self, id):
-        query = model.ActivityModel.query.get(id)
+        query = ActivityModel.query.get(id)
         if(query):
             activity = {
                 'id': query.id,
@@ -414,8 +471,8 @@ class FilterDateActivityResource(Resource):
             dateFrom = datetime.datetime.strptime(dateFrom, '%d-%m-%Y').date()
             dateTo = datetime.datetime.strptime(dateTo, '%d-%m-%Y').date()
 
-            query = model.ActivityModel.query.filter(
-                model.ActivityModel.activity_date.between(dateFrom, dateTo)).all()
+            query = ActivityModel.query.filter(
+                ActivityModel.activity_date.between(dateFrom, dateTo)).all()
 
             return make_response(jsonify(
                 {
